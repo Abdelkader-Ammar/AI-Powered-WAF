@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Go build output
+tier-0/waf_proxy
+tier-0/waf-proxy
+demo/bin/
+*.o
+*.so
+
+# Runtime state / data
+dump.rdb
+*.rdb
+admins.json
+*.log
+logs/
+
+# Local config / secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Models, caches, datasets (large, regenerable)
+geo2ip/
+token_cache/
+roberta_cache/
+waf_roberta_model/
+waf_deberta_model/
+*.pt
+*.safetensors
+*.bin
+*.onnx
+*.csv
+*.jsonl
+*.arrow
+*.zip
+
+# Node (legacy)
+node_modules/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
