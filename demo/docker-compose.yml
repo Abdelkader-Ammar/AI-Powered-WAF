@@ -1,0 +1,90 @@
+# Standalone demo stack. Builds the REAL WAF components from the repo as build
+# contexts (read, not modified) and adds the demo-only target + tooling, all on a
+# private network. `docker compose up` from the demo/ directory.
+#
+# Build context is the repo root (..), so services can reach ../tier-0, ../rasp,
+# etc. Run with:  docker compose -f docker-compose.yml up --build
+name: ai-waf-demo
+
+services:
+  redis:
+    image: redis:7-alpine
+    networks: [wafnet]
+
+  postgres:
+    image: postgres:16-alpine
+    # Demo-only credentials. Postgres is reachable only on the private demo
+    # network (no host port), so these fixed values never leave the stack.
+    environment:
+      POSTGRES_USER: waf
+      POSTGRES_PASSWORD: waf
+      POSTGRES_DB: shop
+    volumes:
+      - ./target/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    networks: [wafnet]
+
+  # The deliberately-vulnerable target, run UNDER the RASP shim.
+  target:
+    build:
+      context: ..
+      dockerfile: demo/target/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://waf:waf@postgres:5432/shop
+      RASP_SOCKET: /run/waf-rasp.sock
+      RASP_ENFORCE: "1"
+    volumes:
+      - rasp_sock:/run            # share the RASP ingest socket with the WAF
+    depends_on: [postgres]
+    networks: [wafnet]
+
+  # Tier 1 RoBERTa service (built from the repo). Requires a model; see its env.
+  tier1:
+    build:
+      context: ../tier1_roberta
+    environment:
+      ROBERTA_HOST: 0.0.0.0
+      ROBERTA_PORT: "5001"
+      # ROBERTA_MODEL_PATH must point at a mounted checkpoint:
+      # ROBERTA_MODEL_PATH: /models/waf_roberta
+    # volumes: [ "/path/to/model:/models/waf_roberta:ro" ]
+    networks: [wafnet]
+
+  # The orchestrator (Tier 0 + trust engine), built from ../tier-0.
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: demo/orchestrator.Dockerfile
+    environment:
+      WAF_BACKEND: http://target:9090
+      REDIS_ADDR: redis:6379
+      ENABLE_RASP: "true"               # the target runs under the RASP shim
+      RASP_SOCKET_PATH: /run/waf-rasp.sock
+      TRUST_XFORWARDED: "true"          # demo only: lets sim.py present distinct actors
+      ENABLE_CORAZA: "false"            # demo: front tiers permissive to spotlight the RASP
+    volumes:
+      - rasp_sock:/run            # receive RASP events from the target's shim
+    depends_on: [redis, target]
+    ports:
+      - "8080:8080"               # proxy (for manual poking)
+      - "8081:8081"               # admin API
+    networks: [wafnet]
+
+  # Python admin dashboard (FastAPI), built from ../dashboard_py.
+  dashboard:
+    build:
+      context: ../dashboard_py
+    environment:
+      WAF_ADMIN_API: http://orchestrator:8081
+      REDIS_HOST: redis
+      PORT: "8082"
+    ports:
+      - "8082:8082"
+    depends_on: [orchestrator]
+    networks: [wafnet]
+
+volumes:
+  rasp_sock:
+
+networks:
+  wafnet:
+    driver: bridge
