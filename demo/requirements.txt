@@ -1,0 +1,6 @@
+# Tooling for the attack simulator, observer, and tests (run on the host).
+httpx>=0.24.0
+pyyaml>=6.0
+pytest>=7.4.0
+rich>=13.0.0       # optional: prettier observer console
+redis>=5.0.0       # optional: observer / score reads

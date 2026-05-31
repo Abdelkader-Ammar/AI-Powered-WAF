@@ -1,0 +1,75 @@
+# Labelled attack catalogue. Single source of truth shared by the live demo
+# (sim.py) and the regression suite (tests/test_scenarios.py). Each entry pairs a
+# request with the layer and decision we expect.
+
+benign_human:
+  - {expect_layer: allow, expect_decision: allow, method: GET, path: "/"}
+  - {expect_layer: allow, expect_decision: allow, method: GET, path: "/products?page=1"}
+  - {expect_layer: allow, expect_decision: allow, method: GET, path: "/products?page=2"}
+
+# 6 sensitive-path hits → lands in the BLOCK band (>=3 recon, <8 which would ban).
+recon_sweep:
+  - {expect_layer: gatekeeper, expect_decision: block, method: GET, path: "/.env", repeat: 2}
+  - {expect_layer: gatekeeper, expect_decision: block, method: GET, path: "/admin", repeat: 2}
+  - {expect_layer: gatekeeper, expect_decision: block, method: GET, path: "/wp-login.php", repeat: 2}
+
+id_enum:
+  - {expect_layer: gatekeeper, expect_decision: block, method: GET, path: "/products?id=1", repeat: 10}
+
+brute_login:
+  - {expect_layer: gatekeeper, expect_decision: block, method: POST, path: "/login",
+     body: "username=alice&password=wrong", repeat: 25}
+
+ddos_burst:
+  - {expect_layer: gatekeeper, expect_decision: ban, method: GET, path: "/", repeat: 60}
+
+# ~35 rapid hits → moderate burst (>15, <50) → CHALLENGE band (proof-of-work).
+# Volumetric, so it needs the requests inside one ~1s window (fired concurrently).
+scrape_paging:
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/products?page=99", repeat: 35}
+
+# A touch of a sensitive endpoint marks the IP suspicious-but-unproven, so it (and
+# even its following benign requests) get a CHALLENGE / proof-of-work until it
+# proves itself. Persistent signal → reliable at ANY request pace. The benign tail
+# makes the challenge visible across several rows (the sensitive hit commits one
+# request behind, so the tail is what the dashboard shows sitting in 'challenge').
+sensitive_probe:
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/admin"}
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/products?page=1"}
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/products?page=2"}
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/products?page=3"}
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/products?page=4"}
+  - {expect_layer: gatekeeper, expect_decision: challenge, method: GET, path: "/products?page=5"}
+
+sqli_coraza:
+  - {expect_layer: coraza, expect_decision: block, method: GET, path: "/search?q=' OR 1=1--"}
+
+xss_reflected:
+  - {expect_layer: tier0, expect_decision: block, method: GET, path: "/search?q=<script>alert(1)</script>"}
+
+sqli_grey:
+  - {expect_layer: tier1, expect_decision: allow, method: GET,
+     path: "/search?q=1%2F%2A%2A%2FUNION%2F%2A%2A%2FSELECT"}
+
+rce_exec:
+  - {expect_layer: rasp, expect_decision: ban, method: GET, path: "/ping?host=127.0.0.1;id"}
+
+lfi_read:
+  - {expect_layer: rasp, expect_decision: ban, method: GET, path: "/download?file=/etc/passwd"}
+
+# Innocent-looking to Coraza/Tier 0 (no <?php signature, just text) -- but the
+# backend writes it as an executable .php into the web root, which ONLY the RASP
+# catches. This is the clean "RASP catches what the payload tiers miss" demo.
+webshell:
+  - {expect_layer: rasp, expect_decision: ban, method: POST, path: "/upload",
+     body: "name=update.php&data=cache refresh helper v2"}
+
+ssrf:
+  - {expect_layer: rasp, expect_decision: ban, method: GET, path: "/fetch?url=http://169.254.169.254/latest/meta-data/"}
+
+sqli_rasp:
+  - {expect_layer: rasp, expect_decision: ban, method: GET, path: "/search?q=x'; DROP TABLE users--"}
+
+db_unauth:
+  - {expect_layer: rasp, expect_decision: ban, method: GET,
+     path: "/search?q=zzz' UNION SELECT table_name,1 FROM information_schema.tables--"}
