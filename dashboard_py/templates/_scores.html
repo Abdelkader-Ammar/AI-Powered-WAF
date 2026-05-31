@@ -1,0 +1,12 @@
+{% if rows %}
+<table>
+  <thead><tr><th>Entity (IP / User)</th><th>Trust Score</th></tr></thead>
+  <tbody>
+    {% for id, score in rows %}
+    <tr><td>{{ id }}</td><td>{{ score }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--muted)">No scores yet (or Redis not reachable).</p>
+{% endif %}

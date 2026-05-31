@@ -1,0 +1,39 @@
+{# Reusable form controls. Imported by dashboard.html as `ui`. No JavaScript is
+   authored: each control posts its change to /api/config via HTMX attributes. #}
+
+{% macro _attrs(name) -%}
+  name="{{ name }}" hx-post="/api/config" hx-trigger="change"
+  hx-target="#toast" hx-swap="innerHTML"
+{%- endmacro %}
+
+{% macro slider(label, name, value, lo, hi, step, pct=False) %}
+<div class="field">
+  <label>{{ label }} <span class="val">{% if pct %}{{ (value*100)|round|int }}%{% else %}{{ value }}{% endif %}</span></label>
+  <input type="range" min="{{ lo }}" max="{{ hi }}" step="{{ step }}" value="{{ value }}" {{ _attrs(name) }} />
+</div>
+{% endmacro %}
+
+{% macro num(label, name, value) %}
+<div class="field">
+  <label>{{ label }}</label>
+  <input type="number" step="any" value="{{ value }}" {{ _attrs(name) }} />
+</div>
+{% endmacro %}
+
+{% macro text(label, name, value) %}
+<div class="field">
+  <label>{{ label }}</label>
+  <input type="text" value="{{ value }}" {{ _attrs(name) }} />
+</div>
+{% endmacro %}
+
+{% macro select(label, name, value, options) %}
+<div class="field">
+  <label>{{ label }}</label>
+  <select {{ _attrs(name) }}>
+    {% for ov, ol in options %}
+      <option value="{{ ov }}" {% if (value|string|lower) == (ov|string|lower) %}selected{% endif %}>{{ ol }}</option>
+    {% endfor %}
+  </select>
+</div>
+{% endmacro %}

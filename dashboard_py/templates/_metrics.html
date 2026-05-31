@@ -1,0 +1,77 @@
+{# KPI row #}
+<div class="grid g-kpi" style="margin-bottom:16px">
+  <div class="kpi">
+    <div class="lab">Total Requests</div>
+    <div class="num" style="color:#c4a4f7">{{ kpi.total }}</div>
+    <div style="margin-top:6px">{{ req_spark|safe }}</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">Blocked</div>
+    <div class="num" style="color:#fca5a5">{{ kpi.blocked }}</div>
+    <div style="margin-top:6px">{{ block_spark|safe }}</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">Banned</div>
+    <div class="num" style="color:#e9a5f7">{{ kpi.banned }}</div>
+    <div style="margin-top:6px">{{ ban_spark|safe }}</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">RASP Detections</div>
+    <div class="num" style="color:#fdba74">{{ kpi.rasp }}</div>
+    <div style="margin-top:6px">{{ rasp_spark|safe }}</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">Entities Tracked</div>
+    <div class="num" style="color:#5eead4">{{ kpi.entities }}</div>
+    <div class="lab" style="margin-top:14px">IPs &amp; users with a trust score</div>
+  </div>
+</div>
+
+{# charts row #}
+<div class="grid g-3" style="margin-bottom:16px">
+  <div class="panel">
+    <h3>Threat Level <span class="sub">stopped / total</span></h3>
+    <div style="max-width:240px;margin:0 auto">{{ gauge|safe }}</div>
+  </div>
+  <div class="panel">
+    <h3>Decision Breakdown</h3>
+    <div style="display:flex;align-items:center;gap:18px">
+      <div>{{ donut|safe }}</div>
+      <div style="font-size:12px;line-height:2">
+        <div><span style="color:#2dd4bf">●</span> allow</div>
+        <div><span style="color:#a855f7">●</span> blocked</div>
+        <div><span style="color:#fb923c">●</span> challenge</div>
+        <div><span style="color:#f87171">●</span> ban</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Attacks by Type</h3>
+    {% if cat_bars %}
+    {% for name, val, color in cat_bars %}
+    <div style="margin:9px 0">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="color:{{ color }};font-weight:600">{{ name }}</span><span class="mono">{{ val }}</span></div>
+      <div style="height:8px;border-radius:4px;background:#1c1c2a">
+        <div style="height:8px;border-radius:4px;width:{{ (val/cat_max*100)|round }}%;background:{{ color }}"></div></div>
+    </div>
+    {% endfor %}
+    {% else %}<p class="why">No attacks detected yet.</p>{% endif %}
+  </div>
+</div>
+
+{# trust score over time — one line per IP (cleaner than a rewriting table) #}
+<div class="panel">
+  <h3>Trust Score Over Time
+    <span class="sub">bands: ban &lt; 1 · block &lt; 3 · challenge &lt; 5 · allow ≥ 5 (so a banned entity sits below 1, not necessarily 0)</span></h3>
+  {% if score_legend %}
+  <div style="margin-bottom:8px">{{ score_chart|safe }}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:11.5px">
+    {% for ip, last, color in score_legend %}
+      <span><span style="color:{{ color }}">●</span>
+        <span class="mono">{{ ip }}</span>
+        <b style="color:{{ '#f87171' if last<3 else ('#fb923c' if last<5 else '#2dd4bf') }}">{{ '%.1f'|format(last) }}</b></span>
+    {% endfor %}
+  </div>
+  {% else %}<p class="why">No scored traffic yet — run an attack.</p>{% endif %}
+</div>

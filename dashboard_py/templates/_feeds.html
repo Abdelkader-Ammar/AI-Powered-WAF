@@ -1,0 +1,105 @@
+{% macro pill(d) -%}
+{%- if d == 'allow' -%}<span class="pill p-allow">allow</span>
+{%- elif d == 'ban' -%}<span class="pill p-ban">ban</span>
+{%- elif d == 'challenge' -%}<span class="pill p-chal">challenge</span>
+{%- elif 'stricter' in d -%}<span class="pill p-strict">stricter</span>
+{%- elif d -%}<span class="pill p-block">{{ d }}</span>
+{%- else -%}<span class="pill">-</span>{%- endif -%}
+{%- endmacro %}
+
+{# why() takes the whole decision so it can explain a ban using the ACTUAL score
+   and note when the front tiers allowed a request that the RASP later blocked. #}
+{% macro why(e) -%}
+{%- set d = e.decision or '' -%}
+{%- if e._rasp -%}front tiers (Coraza · LightGBM · trust) ALL allowed this request — the RASP then blocked the real exploit at the backend
+{%- elif d=='block_coraza' -%}Coraza CRS regex matched the payload
+{%- elif d=='block_lgbm' -%}LightGBM probability ≥ block threshold
+{%- elif d=='ban' and e._rasp -%}confirmed RASP exploit drove the trust score to 0 — entity denied on every future request
+{%- elif d=='ban' -%}trust score {{ '%.2f'|format(e.trust_score) if e.trust_score is not none else '?' }} fell below the ban threshold (&lt; 1.0) — entity denied on every future request
+{%- elif d=='challenge' -%}low trust — served a proof-of-work challenge
+{%- elif d and 'rate_limit' in d -%}exceeded the tier rate limit
+{%- elif d=='allow' -%}passed every tier
+{%- elif 'stricter' in d -%}allowed under stricter rate limit + Coraza
+{%- else -%}{{ d }}{%- endif -%}
+{%- endmacro %}
+
+<div class="grid g-2">
+  {# ── Recent Decisions (click a row to expand; survives refresh) ────────── #}
+  <div class="panel">
+    <h3>Recent Decisions
+      <span class="sub">last {{ events|length }} requests (newest first) · gatekeeper verdict at the edge — the RASP can still block at the backend</span></h3>
+    {% if events %}
+    <div class="feed">
+      {% for e in events %}
+      <details class="frow" id="{{ e._rowid }}">
+        <summary class="fsum">
+          <span class="tri">▸</span>
+          {{ pill(e.decision or '') }}
+          <span><b>{{ e.method }}</b> <span class="mono">{{ e.path }}{% if e.query %}?{{ (e.query)[:26] }}{% endif %}</span>
+            {% if e._rasp %}<span class="rasp-badge">allowed at edge → RASP blocked: {{ e._rasp.category }}</span>{% endif %}</span>
+          <span class="why">{{ e.ip }}</span>
+        </summary>
+        <div class="fdet">
+          {% if e._rasp %}
+          <div class="kv" style="margin-bottom:6px"><span class="k">outcome</span>
+            <span><span class="pill p-allow">edge: {{ e.decision or 'allow' }}</span>
+              <span style="color:var(--muted)">→</span>
+              <span class="pill p-block">backend: RASP blocked</span></span></div>
+          {% endif %}
+          <div class="k" style="margin-bottom:2px">Payload (what was sent)</div>
+          <div class="payload">{{ e.method }} {{ e.path }}{% if e.query %}?{{ e.query }}{% endif %}{% if e.body %}
+body: {{ e.body }}{% endif %}</div>
+          <div class="kv"><span class="k">Why</span><span>{{ why(e) }}</span></div>
+          <div class="kv">
+            <span class="k">IP / user</span><span class="mono">{{ e.ip }} / {{ e.user_id or '—' }}</span>
+            <span class="k">status</span><span>{{ e.response_code }}</span></div>
+          <div class="kv">
+            <span class="k">LGBM</span><span>{{ '%.3f'|format(e.lgbm_prob) if e.lgbm_prob is not none else '—' }}</span>
+            <span class="k">Coraza</span><span>{{ e.coraza_verdict or '—' }}</span>
+            <span class="k">score</span><span>{{ '%.2f'|format(e.trust_score) if e.trust_score is not none else '—' }}</span></div>
+          <div class="kv"><span class="k">request id</span><span class="mono">{{ e.request_id or '—' }}</span>
+            <span class="k">time</span><span class="mono">{{ e.timestamp }}</span></div>
+          {% if e._rasp %}
+          <div class="kv" style="margin-top:8px;border-top:1px solid #2a1820;padding-top:8px">
+            <span class="k" style="color:var(--orange)">RASP caught</span>
+            <span><b style="color:var(--orange)">{{ e._rasp.category }}</b>
+              ({{ e._rasp.severity }}, {{ e._rasp.action }}) at the backend —
+              <span class="mono" style="color:#fdba74">{{ e._rasp.evidence }}</span></span></div>
+          {% endif %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% else %}<p class="why">No requests yet — run an attack.</p>{% endif %}
+  </div>
+
+  {# ── Confirmed Exploitation / RASP (expandable, survives refresh) ──────── #}
+  <div class="panel" style="border-color:rgba(248,113,113,.4)">
+    <h3>Confirmed Exploitation <span class="sub">RASP ground-truth — click for detail</span></h3>
+    {% if rasp_events %}
+    <div class="feed">
+      {% for r in rasp_events %}
+      <details class="frow" id="{{ r._rowid }}">
+        <summary class="fsum">
+          <span class="tri">▸</span>
+          <span class="sev-{{ r.severity }}">{{ r.severity }}</span>
+          <span><span class="cat" style="color:var(--orange);font-weight:600">{{ r.category }}</span>
+            <span class="why">{{ r.evidence[:30] }}</span></span>
+          <span class="why">{{ r.action }}</span>
+        </summary>
+        <div class="fdet">
+          <div class="k" style="margin-bottom:2px">Evidence (what the backend actually did)</div>
+          <div class="payload" style="color:#fdba74">{{ r.evidence }}</div>
+          <div class="kv">
+            <span class="k">category</span><span class="cat" style="color:var(--orange)">{{ r.category }}</span>
+            <span class="k">severity</span><span><span class="sev-{{ r.severity }}">{{ r.severity }}</span></span>
+            <span class="k">action</span><span><b>{{ r.action }}</b></span></div>
+          <div class="kv"><span class="k">IP / user</span><span class="mono">{{ r.ip }} / {{ r.user_id or '—' }}</span></div>
+          <div class="kv"><span class="k">request id</span><span class="mono">{{ r.request_id or '—' }}</span></div>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% else %}<p class="why">No confirmed exploitation. (Needs the RASP agent under the backend and <code>enable_rasp</code>; obvious payloads are often caught by Coraza first.)</p>{% endif %}
+  </div>
+</div>

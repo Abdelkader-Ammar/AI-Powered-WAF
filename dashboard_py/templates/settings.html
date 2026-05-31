@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block body %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div>
+    <h2 style="margin:0">WAF Configuration</h2>
+    <p style="color:var(--muted);margin:4px 0 0;font-size:13px">Every change applies live. The orchestrator hot-reloads weights, thresholds, identity, rate limits, and Coraza.</p>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button class="ghost" hx-post="/api/config/reset"
+            hx-confirm="Reset ALL settings to their defaults? (Admin accounts and the JWT secret are preserved.)"
+            hx-target="#toast">Reset Config to Defaults</button>
+    <button class="danger" hx-post="/api/data/reset"
+            hx-confirm="Clear ALL runtime data — decisions, the RASP feed, trust scores, and behavioural profiles (banned entities are forgiven)? The admin account and configuration are kept."
+            hx-target="#toast">Clear All Data</button>
+  </div>
+</div>
+
+<div class="grid g-2" style="align-items:start">
+  <div class="panel">
+    <h3>Aggression &amp; Thresholds</h3>
+    {{ ui.slider("ML Block Threshold", "threshold", config.threshold, 0.5, 0.99, 0.01, pct=True) }}
+    {{ ui.slider("Stricter Margin", "stricter_margin", config.stricter_margin, 0.0, 0.5, 0.01) }}
+    {{ ui.slider("IP Risk Weight", "weight_ip", config.weight_ip, 0, 1, 0.05) }}
+    {{ ui.slider("User Penalty Weight", "weight_user", config.weight_user, 0, 1, 0.05) }}
+    {{ ui.slider("Trust Boost Multiplier", "weight_boost", config.weight_boost, 0, 1, 0.05) }}
+  </div>
+  <div class="panel">
+    <h3>Identity &amp; Layers</h3>
+    {{ ui.select("Authentication Mode", "identity_mode", config.identity_mode,
+              [("jwt","Local JWT"),("headers","Forward Auth"),("opaque","Auth API")]) }}
+    {{ ui.select("Coraza (CRS) Enabled", "enable_coraza", config.enable_coraza,
+              [("true","Enabled"),("false","Disabled")]) }}
+    {{ ui.select("RASP (Tier 2) Ingest", "enable_rasp", config.enable_rasp,
+              [("true","Enabled"),("false","Disabled")]) }}
+    {{ ui.select("Trust X-Forwarded-For", "trust_xforwarded", config.trust_xforwarded,
+              [("false","Off (use socket IP)"),("true","On (behind trusted LB)")]) }}
+  </div>
+</div>
+
+<div class="panel" style="margin-top:16px">
+  <h3>Rate Limits <span class="sub">requests/sec &amp; burst per tier</span></h3>
+  <div class="adv-grid">
+    {{ ui.num("Allow rate", "tier_allow_rate", config.tier_allow_rate) }}
+    {{ ui.num("Allow burst", "tier_allow_burst", config.tier_allow_burst) }}
+    {{ ui.num("Stricter rate", "tier_stricter_rate", config.tier_stricter_rate) }}
+    {{ ui.num("Stricter burst", "tier_stricter_burst", config.tier_stricter_burst) }}
+    {{ ui.num("Challenge rate", "tier_challenge_rate", config.tier_challenge_rate) }}
+    {{ ui.num("Challenge burst", "tier_challenge_burst", config.tier_challenge_burst) }}
+  </div>
+</div>
+
+{% set t1 = config.tier1_config %}
+{% if t1 %}
+<div class="panel" style="margin-top:16px">
+  <h3>Tier 1 — Deep NLP (RoBERTa)</h3>
+  <div class="adv-grid">
+    {{ ui.select("Enabled", "tier1_config.tier1_enabled", t1.tier1_enabled,
+              [("true","Enabled"),("false","Disabled")]) }}
+    {{ ui.text("Model URL", "tier1_config.tier1_model_url", t1.tier1_model_url) }}
+    {{ ui.num("Confidence threshold", "tier1_config.tier1_confidence_threshold", t1.tier1_confidence_threshold) }}
+    {{ ui.num("Worker count", "tier1_config.tier1_worker_count", t1.tier1_worker_count) }}
+    {{ ui.num("Correction delta", "tier1_config.tier1_correction_delta", t1.tier1_correction_delta) }}
+  </div>
+</div>
+{% endif %}
+
+{% if config.trustscore %}
+<div class="panel" style="margin-top:16px">
+  <h3>Trust Engine — Module Thresholds</h3>
+  <div class="adv-grid">
+    {% for key, value in config.trustscore.items() %}
+      {{ ui.num(key, "trustscore." ~ key, value) }}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

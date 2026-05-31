@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="login">
+  <header style="border:0;text-align:center">
+    <h1>{% if mode == "setup" %}Welcome to AI-WAF{% else %}Admin Login{% endif %}</h1>
+    <p>{% if mode == "setup" %}Create your master admin account.{% else %}Authenticate to manage the WAF.{% endif %}</p>
+  </header>
+  <div class="panel">
+    <form method="post" action="/{{ mode }}">
+      <div class="field"><label>Username</label>
+        <input type="text" name="username" required /></div>
+      <div class="field"><label>Password</label>
+        <input type="password" name="password" required /></div>
+      {% if error %}<p style="color:#ff6b6b;font-size:.9rem">{{ error }}</p>{% endif %}
+      <button type="submit" style="width:100%">
+        {% if mode == "setup" %}Create Account{% else %}Login{% endif %}</button>
+    </form>
+    <p style="text-align:center;margin:14px 0 0;font-size:.85rem;color:var(--muted)">
+      {% if mode == "setup" %}
+        Already have an account? <a href="/login" style="color:var(--purple)">Log in</a>
+      {% else %}
+        First time here? <a href="/setup" style="color:var(--purple)">Create the admin account</a>
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endblock %}

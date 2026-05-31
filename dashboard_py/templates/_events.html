@@ -1,0 +1,47 @@
+{% macro decision_class(d) -%}
+{%- if d == 'allow' -%}d-allow
+{%- elif d == 'ban' -%}d-ban
+{%- elif 'block' in d or 'rate_limit' in d -%}d-block
+{%- elif d == 'challenge' -%}d-chal
+{%- elif 'stricter' in d -%}d-strict
+{%- else -%}d-other{%- endif -%}
+{%- endmacro %}
+<style>
+  .d-allow{color:#2ecc71}.d-ban{color:#fff;background:#7b241c;padding:1px 6px;border-radius:4px}
+  .d-block{color:#e74c3c}.d-chal{color:#e0a800}.d-strict{color:#3498db}.d-other{color:var(--muted)}
+  .why{color:var(--muted);font-size:.78rem}
+</style>
+{% if events %}
+<table>
+  <thead><tr>
+    <th>method</th><th>path</th><th>IP</th><th>user</th>
+    <th>LGBM</th><th>score</th><th>decision (why / how)</th>
+  </tr></thead>
+  <tbody>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.method }}</td>
+      <td title="{{ e.path }}">{{ e.path[:40] }}</td>
+      <td>{{ e.ip }}</td>
+      <td>{{ e.user_id or '-' }}</td>
+      <td>{{ '%.3f'|format(e.lgbm_prob) if e.lgbm_prob is not none else '-' }}</td>
+      <td>{{ '%.2f'|format(e.trust_score) if e.trust_score is not none else '-' }}</td>
+      <td>
+        <span class="{{ decision_class(e.decision or '') }}">{{ e.decision or '-' }}</span>
+        <span class="why">
+          {%- if e.decision == 'block_coraza' %} — CRS regex matched
+          {%- elif e.decision == 'block_lgbm' %} — ML prob ≥ threshold
+          {%- elif e.decision == 'ban' %} — score 0 (hard override / RASP)
+          {%- elif e.decision == 'challenge' %} — low trust, PoW challenge
+          {%- elif e.decision and 'rate_limit' in e.decision %} — over rate limit
+          {%- elif e.decision == 'allow' %} — passed all tiers
+          {%- endif %}
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--muted)">No requests yet (or Redis not reachable). Run an attack.</p>
+{% endif %}

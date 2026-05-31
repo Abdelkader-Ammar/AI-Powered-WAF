@@ -1,0 +1,28 @@
+<style>
+  .sev-critical{color:#fff;background:#7b241c;padding:1px 6px;border-radius:4px;font-weight:600}
+  .sev-high{color:#e74c3c;font-weight:600}.sev-medium{color:#e0a800}.sev-low{color:var(--muted)}
+  .cat{color:#e67e22;font-weight:600}.evid{font-family:monospace;font-size:.78rem;color:var(--text)}
+</style>
+{% if events %}
+<table>
+  <thead><tr>
+    <th>category</th><th>severity</th><th>action</th>
+    <th>IP</th><th>user</th><th>evidence (what the backend actually did)</th>
+  </tr></thead>
+  <tbody>
+    {% for e in events %}
+    <tr>
+      <td class="cat">{{ e.category }}</td>
+      <td><span class="sev-{{ e.severity }}">{{ e.severity }}</span></td>
+      <td>{{ e.action }}</td>
+      <td>{{ e.ip }}</td>
+      <td>{{ e.user_id or '-' }}</td>
+      <td class="evid">{{ e.evidence }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:var(--muted)">No confirmed exploitation yet. (Requires the RASP
+agent running under the backend and <code>enable_rasp</code>.)</p>
+{% endif %}

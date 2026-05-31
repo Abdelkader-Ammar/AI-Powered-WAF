@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block body %}
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+  <button class="danger" hx-post="/api/data/reset"
+          hx-confirm="Clear ALL runtime data — decisions, RASP feed, trust scores, and profiles (banned entities forgiven)? Admin account and config are kept."
+          hx-target="#toast">Clear All Data</button>
+</div>
+{# Metrics (charts/KPIs) refresh fast. The expandable feeds refresh too, but the
+   refresh is SUPPRESSED whenever a row is open — an open row's expansion lives in
+   the DOM/URL hash, and swapping the list out from under it would collapse it.
+   So while you are reading a row, the feed holds still; close it and live updates
+   resume. (hx-on is an HTMX attribute, not page JS.) #}
+<div hx-get="/api/metrics" hx-trigger="every 3s" hx-swap="innerHTML" style="margin-bottom:16px">
+  {% include "_metrics.html" %}
+</div>
+<div hx-get="/api/feeds" hx-trigger="every 10s" hx-swap="innerHTML"
+     hx-on:htmx:before-request="if(document.querySelector('.frow[open]')) event.preventDefault()">
+  {% include "_feeds.html" %}
+</div>
+{% endblock %}

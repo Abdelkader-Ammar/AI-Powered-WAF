@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-WAF Control Center</title>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <style>
+    :root{
+      --bg:#0a0a12; --panel:#13131f; --panel2:#1a1a28; --line:#242438;
+      --text:#ececf5; --muted:#7c7c97; --purple:#a855f7; --magenta:#d946ef;
+      --teal:#2dd4bf; --orange:#fb923c; --red:#f87171; --grad:linear-gradient(135deg,#a855f7,#d946ef);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+      font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:14px;
+      background-image:radial-gradient(1100px 380px at 50% -120px,rgba(168,85,247,.28),transparent 70%);}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1240px;margin:0 auto;padding:0 22px 60px}
+    /* header */
+    header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 26px}
+    .brand{display:flex;align-items:center;font-weight:700;font-size:18px;letter-spacing:.2px}
+    .nav{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);
+      padding:5px;border-radius:14px}
+    .nav a{padding:8px 18px;border-radius:10px;color:var(--muted);font-weight:500;font-size:13px}
+    .nav a.on{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(168,85,247,.35)}
+    .hdr-r{display:flex;align-items:center;gap:12px}
+    .logout{color:var(--muted);font-size:13px;font-weight:500;background:var(--panel);
+      border:1px solid var(--line);padding:8px 14px;border-radius:10px}
+    .logout:hover{color:var(--text)}
+    /* panels */
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+    .panel h3{margin:0 0 14px;font-size:14px;font-weight:600;display:flex;
+      align-items:center;justify-content:space-between;gap:8px}
+    .panel h3 .sub{color:var(--muted);font-weight:400;font-size:11px}
+    .grid{display:grid;gap:16px}
+    .g-kpi{grid-template-columns:repeat(5,1fr)}
+    .g-3{grid-template-columns:1fr 1fr 1fr}
+    .g-2{grid-template-columns:1.55fr 1fr}
+    @media(max-width:1000px){.g-kpi{grid-template-columns:repeat(2,1fr)}.g-3,.g-2{grid-template-columns:1fr}}
+    /* kpi card */
+    .kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 16px 8px;overflow:hidden}
+    .kpi .top{display:flex;align-items:flex-start;justify-content:space-between}
+    .kpi .num{font-size:30px;font-weight:700;line-height:1.1;margin-top:2px}
+    .kpi .lab{color:var(--muted);font-size:12px}
+    .kpi .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px}
+    /* tables */
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    th{text-align:left;color:var(--muted);font-weight:500;padding:8px 10px;font-size:11px;
+      text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}
+    td{padding:9px 10px;border-bottom:1px solid #1c1c2a}
+    tr:last-child td{border-bottom:0}
+    .pill{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;display:inline-block}
+    .p-allow{color:#86efac;background:rgba(45,212,191,.12)}
+    .p-block{color:#fca5a5;background:rgba(248,113,113,.12)}
+    .p-chal{color:#fdba74;background:rgba(251,146,60,.12)}
+    .p-ban{color:#fff;background:linear-gradient(135deg,#7b241c,#b91c1c)}
+    .p-strict{color:#93c5fd;background:rgba(96,165,250,.12)}
+    .mono{font-family:ui-monospace,monospace;color:var(--muted)}
+    .why{color:var(--muted);font-size:11px}
+    .cat{color:var(--orange);font-weight:600}
+    .sev-critical{color:#fff;background:linear-gradient(135deg,#7b241c,#b91c1c);padding:2px 8px;border-radius:6px;font-weight:600}
+    .sev-high{color:var(--red);font-weight:600}.sev-medium{color:var(--orange)}.sev-low{color:var(--muted)}
+    /* forms */
+    .field{margin-bottom:14px}
+    .field label{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:6px}
+    .field .val{color:var(--text);font-weight:600}
+    input[type=range]{width:100%;accent-color:var(--purple)}
+    input[type=number],input[type=text],input[type=password],select{width:100%;padding:9px;
+      background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--text)}
+    .adv-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    button{background:var(--grad);color:#fff;border:0;border-radius:10px;padding:10px 16px;
+      cursor:pointer;font-size:13px;font-weight:600}
+    button.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+    button.danger{background:linear-gradient(135deg,#b91c1c,#7b241c)}
+    .toast{position:fixed;bottom:22px;right:22px;z-index:50;padding:11px 16px;border-radius:10px;
+      font-weight:600;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    .toast.ok{background:var(--grad);color:#fff}.toast.err{background:var(--red);color:#fff}
+    .login{max-width:380px;margin:13vh auto}
+    /* Expandable feed rows are native <details>: clicking the header (summary)
+       toggles open AND closed — no separate close control. The HTMX feed refresh
+       is paused while any row is open (see overview.html), so an open row never
+       collapses on its own. */
+    .feed{max-height:460px;overflow-y:auto;margin:-4px -6px -4px -6px;padding:0 6px}
+    .feed::-webkit-scrollbar{width:8px}.feed::-webkit-scrollbar-thumb{background:#2a2a40;border-radius:8px}
+    .frow{border-bottom:1px solid #1c1c2a;scroll-margin-top:90px}
+    .fsum{display:grid;grid-template-columns:16px 78px 1fr auto;gap:9px;align-items:center;
+      padding:9px 4px;font-size:12.5px;cursor:pointer;color:var(--text);list-style:none}
+    .fsum::-webkit-details-marker{display:none}
+    .fsum::marker{content:""}
+    .fsum:hover{background:#15151f}
+    .fsum .tri{color:var(--muted);font-size:10px;display:inline-block;width:16px;
+      text-align:center;transform-origin:50% 50%;transition:transform .15s}
+    .frow[open]>.fsum{background:#15151f}
+    .frow[open]>.fsum .tri{transform:rotate(90deg)}
+    .fdet{padding:8px 10px 12px;background:#0e0e18;border:1px solid #1c1c2a;
+      border-radius:8px;margin:0 2px 8px;font-size:12px}
+    .rasp-badge{color:#fdba74;background:rgba(251,146,60,.14);border:1px solid rgba(251,146,60,.3);
+      padding:1px 6px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap}
+    .kv{display:flex;gap:8px;margin:4px 0;flex-wrap:wrap}
+    .k{color:var(--muted);min-width:74px}
+    .payload{font-family:ui-monospace,monospace;color:#fca5a5;word-break:break-all;
+      background:#1a0e14;border:1px solid #3a1d24;border-radius:6px;padding:7px 9px;margin:4px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% if nav %}
+    <header>
+      <div class="brand">AI-WAF</div>
+      <nav class="nav">
+        <a href="/" class="{{ 'on' if nav=='overview' }}">Overview</a>
+        <a href="/settings" class="{{ 'on' if nav=='settings' }}">Settings</a>
+      </nav>
+      <div class="hdr-r">
+        <a class="logout" href="/logout">Log out</a>
+      </div>
+    </header>
+    {% endif %}
+    {% block body %}{% endblock %}
+  </div>
+  <div id="toast"></div>
+</body>
+</html>
